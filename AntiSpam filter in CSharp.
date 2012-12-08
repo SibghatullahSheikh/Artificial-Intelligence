@@ -1,0 +1,154 @@
+namespace Clasificador_de_Spam
+     {
+         class Program
+         {
+      
+             class Message
+             {
+                 public string Text { get; set; }
+                 public string CategoryName { get; set; }
+            }
+            class Category
+            {
+                public string Name { get; set; }
+                public int Total { get; set; }
+     
+            }
+            class WordPerCategory
+            {
+               
+                public string Word { get; set; }
+                public List<Category>CategoryPerWord { get; set; }
+            
+                
+                public Category this[string value]
+                {
+                    get
+                    {
+                        return this.CategoryPerWord.FirstOrDefault(c => c.Name.Equals(value));
+                    }
+                }
+            }
+     
+     
+            class Classify
+            {
+                public Classify()
+                {
+                    cWords = new List<WordPerCategory>();
+                    cCategories = new List<Category>();
+                    cTotalTexts = 0;
+                    cTotalWords = 0;
+                }
+                public List<WordPerCategory> cWords { get; set; }
+                public List<Category> cCategories { get; set; }
+                public int cTotalTexts { get; set; }
+                public int cTotalWords { get; set; }
+     
+     
+     
+                public List<string> WordList(string text)
+                {
+                    var wordsTemp = text.ToLower().Split(' ');
+                    var words = new List<string>();
+                    foreach (var word in wordsTemp)
+                        if (word.Count() >  && !words.Contains(word))
+                            words.Add(word);
+     
+                    return words;
+                }
+     
+                public void Training(List<Message> texts)
+                {
+     
+     
+                    foreach (var message in texts)
+                    {
+                        cTotalTexts++;
+                        if (cCategories.Any(c => c.Name.Equals(message.CategoryName)))
+                            cCategories.First(c => c.Name.Equals(message.CategoryName)).Total++;
+                        else
+                            cCategories.Add(new Category() { Name = message.CategoryName, Total =  });
+     
+                    }
+     
+                    foreach (var message in texts)
+                    {
+                        var words = WordList(message.Text);
+                        foreach (var word in words)
+                        {
+                           
+                            if (!cWords.Any(w => w.Word.Equals(word)))
+                            {
+                                cTotalWords++;
+                                var wordPerCategory = new WordPerCategory() { Word = word, CategoryPerWord = new List<Category>()};
+                                foreach (var cat in cCategories)                     
+                                    wordPerCategory.CategoryPerWord.Add(new Category(){Name = cat.Name, Total = 0});
+                            
+                                cWords.Add(wordPerCategory);
+                            }
+                            cWords.First(w => w.Word.Equals(word))[message.CategoryName].Total++;
+     
+                        }
+     
+                    }
+     
+     
+                }
+     
+     
+               public Category Classifier(string texto)
+               {
+                   Category category = new Category();
+                   double probCategory = 0.0;
+    
+                   foreach (var c in cCategories)
+                   {
+                       //Prob of the category
+                       double probC = (double) c.Total / cTotalTexts;
+                       var words = WordList(texto);
+                       double probTotal = probC;
+                       foreach (var w in words)
+                       {
+                           //Prob of the  word
+                           if (cWords.Any(word => word.Word.Equals(w)))
+                           {
+                               var word = cWords.First(wrd => wrd.Word.Equals(w));
+                               double probWord = (double)word[c.Name].Total / cTotalWords;
+                               //P(cat|word)
+                               double probCond = (double)probWord / probC;
+                               //P(word|cat)
+                               double prob = (double)(probCond * probWord) / probC;
+                               probTotal *= (double)prob;
+                           }
+                       }
+                       if (probCategory < probTotal)
+                       {
+                           category = c;
+                           probCategory = probTotal;
+                       }
+                   }
+    
+                   return category;
+               }
+           }
+    
+           static void Main(string[] args)
+           {
+              List<Message> text = new List<Message>()
+                                        {
+                                            new Message(){CategoryName = "SPAM",Text = "Juega al poker online"},
+                                            new Message(){CategoryName = "NO_SPAM",Text = "Mañana vamos al cine"},
+                                            new Message(){CategoryName = "SPAM",Text = "Juega en los mejores casinos de poker"},
+                                            new Message(){CategoryName = "SPAM",Text = "Felicidades usted ha sido seleccionado para ganar un Microsoft Surface"},
+                                            new Message(){CategoryName = "NO_SPAM",Text = "La IA es una gran disciplina, es el punto de convergencia perfecto entre las mates y la program"},
+                                        };
+               Classify antiSpam = new Classify();
+               antiSpam.Training(text);
+               Category category = antiSpam.Classifier("Juega al poker y gana");
+               Console.WriteLine("Se trata de {0}.",category.Name);
+    
+               Console.Read();
+           }
+       }
+   }
